@@ -170,11 +170,7 @@ def split_markdown_tree(text):
         if match:
             level = len(match.group(1))
 
-            node = {
-                "level": level,
-                "header": line,
-                "content": []
-            }
+            node = {"level": level, "header": line, "content": []}
 
             while stack and stack[-1]["level"] >= level:
                 stack.pop()
@@ -209,6 +205,7 @@ def detect_tables(lines):
     tables = []
     i = 0
     n = len(lines)
+    # print("Inside detect tables: ",lines);
 
     while i < n - 1:
 
@@ -268,13 +265,16 @@ def split_table_by_window(table_lines, header_context):
 
 def split_with_tables(text, header_context):
 
+    print("text before splitting\n", text)
+
     lines = text.split("\n")
+    print("text after splitting", lines)
     tables = detect_tables(lines)
 
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=CHUNK_SIZE,
         chunk_overlap=CHUNK_OVERLAP,
-        separators=["\n\n", "\n", ". ", " ", ""]
+        separators=["\n\n", "\n", ". ", " ", ""],
     )
 
     chunks = []
@@ -292,10 +292,7 @@ def split_with_tables(text, header_context):
 
         table_lines = lines[start:end]
 
-        table_chunks = split_table_by_window(
-            table_lines,
-            header_context
-        )
+        table_chunks = split_table_by_window(table_lines, header_context)
 
         chunks.extend(table_chunks)
 
@@ -326,29 +323,44 @@ def hierarchical_chunk(node, parent_headers=None):
 
     chunks = []
 
-    for item in node["content"]:
+    i = 0
+    content = node["content"]
+
+    while i < len(content):
+
+        item = content[i]
 
         if isinstance(item, dict):
 
-            chunks.extend(
-                hierarchical_chunk(
-                    item,
-                    parent_headers + [node["header"]]
-                )
-            )
+            chunks.extend(hierarchical_chunk(item, parent_headers + [node["header"]]))
 
-        else:
+            i += 1
+            continue
 
-            text_block = item.strip()
+        if isinstance(item, str) and item.strip().startswith("|"):
 
-            if text_block:
-                chunks.extend(
-                    split_with_tables(
-                        text_block,
-                        header_context
-                    )
-                )
+            table_lines = []
 
+            while (
+                i < len(content)
+                and isinstance(content[i], str)
+                and content[i].strip().startswith("|")
+            ):
+                table_lines.append(content[i])
+                i += 1
+
+            table_chunks = split_table_by_window(table_lines, header_context)
+
+            chunks.extend(table_chunks)
+
+            continue
+
+        text_block = item.strip()
+
+        if text_block:
+            chunks.extend(split_with_tables(text_block, header_context))
+
+        i += 1
     return chunks
 
 

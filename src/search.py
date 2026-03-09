@@ -7,16 +7,10 @@ client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
 embeddings = OllamaEmbeddings(model=EMBED_MODEL)
 
 
-def search(query, k=1):
+def search(query, k=3):
 
     vector = embeddings.embed_query(query)
 
-    # hits = client.search(
-    #     collection_name=COLLECTION_NAME,
-    #     query_vector=vector,
-    #     limit=k
-    # )
-    
     hits = client.query_points(
         collection_name=COLLECTION_NAME,
         query=vector,
